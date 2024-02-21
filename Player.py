@@ -5,6 +5,9 @@ import smbus2
 import numpy as np
 from scipy.interpolate import interp1d
 
+class Player():
+  
+
 # Initialize the DAC
 dac = MCP4725.MCP4725(smbus2.SMBus(1), 0x62, smbus2)
 

@@ -2,6 +2,7 @@
 #
 # MCP4725 Digital-to-Analogue converter library for the Virtual Hood Project
 
+import smbus2
 
 __all__ = ['MCP4725']
 
@@ -12,10 +13,13 @@ class MCP4725(object):
 						  100: 0b10, 
 						  500: 0b11}
 
-	def __init__(self, bus, addr, smbuslib):
-		self.bus = bus
+	def __init__(self):
+		try:
+			self.bus = smbus2.SMBus(1)
+		except:
+			raise IOError("Could not find i2c device")
+
 		self.addr = addr
-		self.smbuslib = smbuslib
 
 	def write(self, value=0, write_to_EEPROM=False, power_down=0):
 		if value < 0 or value > 4095:
@@ -44,7 +48,7 @@ class MCP4725(object):
 		buf = bytes(data)
 
 		# data must be a bytes type of length of 2 or 3
-		message = self.smbuslib.i2c_msg.write(self.addr, buf)
+		message = smbus2.i2c_msg.write(self.addr, buf)
 
 		# Write the data onto the device
 		self.bus.i2c_rdwr(message)
