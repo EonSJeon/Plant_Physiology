@@ -130,11 +130,12 @@ class ADS1115:
         bytes = [(config >> 8) & 0xFF, config & 0xFF]
         self.bus.write_i2c_block_data(self.address, self.__ADS1015_REG_POINTER_CONFIG, bytes)
     
-    def readADC(self):
+    def read(self):
         # delay = 1.0/self.sps+0.0001
         # time.sleep(delay)
 
-        result = self.bus.read_i2c_block_data(self.address, self.__ADS1015_REG_POINTER_CONVERT, 2)
+        result = self.bus.read_i2c_block_data(self.address, \
+            self.__ADS1015_REG_POINTER_CONVERT, 2)
 
         val = (result[0] << 8) | (result[1])
         if val > 0x7FFF:

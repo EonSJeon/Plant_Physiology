@@ -61,7 +61,7 @@ def animate(i, ys):
     ys=[]
     t0=time.time()
     while(time.time()-t0<=1e-3*interval):
-        volt = ads.readADC()
+        volt = ads.read()
         x_val = (time.time() - start_time) * 1000
         
         if save_data:
