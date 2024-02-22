@@ -40,6 +40,7 @@ update_thread.start()
 
 plt.show()  # This blocks until the plot window is closed
 
+plot.save()
     
     
 
@@ -66,7 +67,8 @@ plt.show()  # This blocks until the plot window is closed
 #         if len(lines) == 2:
 #             x_values = [lines[0][0], lines[1][0]]
 #             y_values = [np.sin(x_value) for x_value in x_values]
-#             poly = Polygon([(x_values[0], 0), *zip(x_values, y_values), (x_values[1], 0)], color='0.9', alpha=0.5)
+#             poly = Polygon([(x_values[0], 0), *zip(x_values, y_values), \
+    # (x_values[1], 0)], color='0.9', alpha=0.5)
 #             ax.add_patch(poly)
 #             fig.canvas.draw()
 

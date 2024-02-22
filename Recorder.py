@@ -7,7 +7,7 @@ import datetime
 import csv
 import threading
 import numpy as np
-
+import Plot
 
 class Recorder():
     def __init__(self):
@@ -54,26 +54,3 @@ class Recorder():
         print(f"Saved data to {filename}")
 
 
-# class Plot():
-#     def __init__(self):
-#         self.display_len = 30
-#         self.fig, self.ax = plt.subplots()
-#         self.ax.set_ylim([0, 5000])
-#         self.line, = self.ax.plot(list(range(0, self.display_len)), [0] * self.display_len)
-        
-#         interval = 200  # Define the interval for animation update
-#         animation.FuncAnimation(self.fig, self.animate, interval=interval, blit=False)
-#         plt.show()
-        
-#         def animate(self, i):
-#         if len(self.sampled_y) >= self.display_len and self.running:
-#             display_xs = self.sampled_t[-self.display_len:]
-#             display_ys = self.sampled_y[-self.display_len:]
-            
-#             self.line.set_xdata(display_xs)
-#             self.line.set_ydata(display_ys)
-            
-#             self.ax.set_xlim(min(display_xs), max(display_xs))
-#             self.ax.autoscale_view(scalex=False, scaley=True) 
-        
-#         return self.line,
