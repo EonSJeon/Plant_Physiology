@@ -5,18 +5,21 @@ import Plot
 import threading
 import time
 
+
+
 class Recorder():
     def __init__(self):
+        self.A=100
         self.num_points = 1000
         self.sampled_t = np.linspace(0, 100 * np.pi, self.num_points)
-        self.sampled_y = np.sin(self.sampled_t)
+        self.sampled_y = self.A*np.sin(self.sampled_t)
         self.step_size = 0.1  # Amount to increment time by in each frame of the animation
     
     def update_data(self):
         # Shift the time axis by step_size to create the moving effect
         self.sampled_t += self.step_size
         # Recalculate the sine wave values
-        self.sampled_y = np.sin(self.sampled_t)
+        self.sampled_y = self.A*np.sin(self.sampled_t)
         # Ensure sampled_t remains within 0 to 2*pi range
         
 
