@@ -12,14 +12,15 @@ class MCP4725(object):
 						  1: 0b01, 
 						  100: 0b10, 
 						  500: 0b11}
-
+	__IC_MCP4725_ID=0x62
+ 
 	def __init__(self):
 		try:
 			self.bus = smbus2.SMBus(1)
 		except:
 			raise IOError("Could not find i2c device")
 
-		self.addr = addr
+		self.addr = self.__IC_MCP4725_ID
 
 	def write(self, value=0, write_to_EEPROM=False, power_down=0):
 		if value < 0 or value > 4095:

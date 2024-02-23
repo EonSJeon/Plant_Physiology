@@ -62,6 +62,8 @@ class Recorder():
         # Generate the default filename
         default_filename = "data_{}.csv".format(datetime.datetime.now().strftime("%Y-%m-%d"))
         
+        ts=ts-min(ts)
+        
         # Initialize Tkinter root widget
         root = tk.Tk()
         root.withdraw()  # Hide the root window

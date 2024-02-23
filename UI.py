@@ -16,7 +16,7 @@ class UI():
         self.line, = self.ax.plot([], [])
         
         self.t_max_width=500
-        self.y_max_width=1e5
+        self.y_max_width=2e4
         
         self.display_ts = np.zeros(self.window_len)
         self.display_ys = np.zeros(self.window_len)
@@ -33,10 +33,7 @@ class UI():
         
         self.fig.canvas.mpl_connect('key_press_event', self.on_key_press)
         self.fig.canvas.mpl_connect('scroll_event', self.on_scroll)
-        
         self.fig.canvas.mpl_connect('button_press_event', self.on_click)
-        self.fig.canvas.mpl_connect('button_release_event', self.on_button_release)
-        self.fig.canvas.mpl_connect('motion_notify_event', self.on_motion)
         
         self.prev_x_lim = self.ax.get_xlim()
         self.prev_y_lim = self.ax.get_ylim()
@@ -47,8 +44,9 @@ class UI():
         
         self.dragging = False
 
-        
-        print("End Init UI")
+        self.ax.set_title("Project Hashirama: Time vs Voltage")
+        self.ax.set_xlabel("Time [ms]")
+        self.ax.set_ylabel("Voltage [mV]")
     
 
     def animate(self, i):
@@ -105,8 +103,6 @@ class UI():
         
         self.ax.set_xlim(- 2 * horizontal_span * 1000,  - horizontal_span * 1000)  # Convert back to ms for xlim
         self.ax.set_ylim(temp_sampled_y_mean - vertical_span*1.5, temp_sampled_y_mean + vertical_span*1.5)
-
-        plt.draw()
         
         del temp_sampled_t
         del temp_sampled_y
@@ -118,7 +114,6 @@ class UI():
         if event.key == 'ctrl+a':
             self.autoscale()
             plt.draw()
-        
         elif event.key ==' ':
             if self.paused:
                 self.erase_marks()
@@ -165,53 +160,54 @@ class UI():
 
 
         plt.draw()
-        
-
+    
     def on_click(self, event):
-        if self.fig.canvas.toolbar.mode=='' and self.paused:
+        if self.paused:
             if event.button==1 and event.inaxes is not None:
-                self.erase_marks()
-                self.start_line = self.ax.axvline(x=event.xdata, color='black', alpha=0, zorder=4)
-                self.click_count=1
-                self.dragging=True
-                self.fig.canvas.draw()   
+                if self.click_count==0:
+                    self.erase_marks()
+                    self.start_line = self.ax.axvline(x=event.xdata, color='red')
+                    self.click_count=1
+                elif self.click_count==1:
+                    start_line_t=self.start_line.get_xdata()[0]
+                    if(event.xdata>start_line_t):
+                        end_line_t=event.xdata
+                        self.end_line = self.ax.axvline(x=end_line_t, color='blue')
+                        self.poly = Polygon([(start_line_t,  self.y_max_width), \
+                                                (start_line_t, -self.y_max_width), \
+                                                (  end_line_t, -self.y_max_width), \
+                                                (  end_line_t,  self.y_max_width)], 
+                                                color='0.9', alpha=0.5)
+                        self.ax.add_patch(self.poly)
+                        self.click_count=0
+                    else:
+                        self.erase_marks()
+                        self.start_line = self.ax.axvline(x=event.xdata, color='red')
+                else:
+                    print(f"Something Error: self.click_count({self.click_count}) exceeds two.")
+                    return
+                self.fig.canvas.draw()
             else:
                 print('Clicked outside axes bounds but inside plot window')
-    
-    def on_button_release(self,event):
-        if self.fig.canvas.toolbar.mode=='' and self.paused and self.dragging and event.button==1:
-            self.start_line.set_alpha(1)
-            
-            end_line_t=event.xdata
-            self.end_line=self.ax.axvline(x=end_line_t, color='black', alpha=1, zorder=4)
-            
-            self.fig.canvas.draw()
-            self.dragging=False
-    
-    def on_motion(self, event):
-        if self.fig.canvas.toolbar.mode=='' and self.paused and self.dragging:
-            if event.inaxes is not None:
-                start_line_t = self.start_line.get_xdata()[0]
-                end_line_t = event.xdata
-                if start_line_t != end_line_t:
-                    # Define the new points for the polygon
-                    new_points = [(start_line_t,  self.y_max_width),
-                                  (start_line_t, -self.y_max_width),
-                                  (  end_line_t, -self.y_max_width),
-                                  (  end_line_t,  self.y_max_width)]
-                    if self.poly is None:
-                        # If the polygon doesn't exist, create it
-                        self.poly = Polygon(new_points, color='black', alpha=0.5, zorder=3)
-                        self.ax.add_patch(self.poly)  # Add the polygon to the axes
-                    else:
-                        # If the polygon exists, update its points
-                        self.poly.set_xy(new_points)
-                    self.fig.canvas.draw()
-            else:
-                self.erase_marks()
-                self.dragging=False
 
+    
+
+    def erase_marks(self):
+        if self.start_line is not None:
+            self.start_line.remove()
+            del self.start_line
+            self.start_line=None
+        if self. end_line is not None:
+            self.end_line.remove()
+            del self.end_line
+            self.end_line=None
+        if self.poly is not None:
+            self.poly.remove()
+            del self.poly
+            self.poly=None
             
+    
+
     def on_xlim_changed(self, event=None):
         
         current_t_lim = self.ax.get_xlim()
@@ -251,25 +247,6 @@ class UI():
             self.ax.set_ylim([bottom_lim, top_lim])
         else:
             self.prev_y_lim = current_y_lim
-        
-
-    def erase_marks(self):
-        if self.start_line is not None:
-            self.start_line.remove()
-            del self.start_line
-            self.start_line=None
-        if self. end_line is not None:
-            self.end_line.remove()
-            del self.end_line
-            self.end_line=None
-        if self.poly is not None:
-            self.poly.remove()
-            del self.poly
-            self.poly=None
-            
-    
-
-
 
 
     
