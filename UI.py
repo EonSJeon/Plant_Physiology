@@ -2,23 +2,20 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from matplotlib.patches import Polygon
 import numpy as np
-import time
+from math import ceil
 
-# Should be moved once ready
-import tkinter as tk
-from tkinter import simpledialog
-import datetime
-import csv
+
 
 class UI():
     def __init__(self, recorder):
+        
         self.parent = recorder
         self.paused=False
-        self.window_len = 100
+        self.window_len = 1000
         self.fig, self.ax = plt.subplots()
         self.line, = self.ax.plot([], [])
         
-        self.t_max_width=1e4
+        self.t_max_width=500
         self.y_max_width=1e5
         
         self.display_ts = np.zeros(self.window_len)
@@ -30,7 +27,8 @@ class UI():
         self.end_line=None
         self.poly=None
         
-        self.anim = animation.FuncAnimation(self.fig, self.animate, interval=200)
+        self.ax.set_xlim([-self.t_max_width,0])
+        self.anim = animation.FuncAnimation(self.fig, self.animate, interval=500, cache_frame_data=False)
         
         
         self.fig.canvas.mpl_connect('key_press_event', self.on_key_press)
@@ -48,52 +46,72 @@ class UI():
         self.ax.callbacks.connect('ylim_changed', self.on_ylim_changed)
         
         self.dragging = False
+
+        
+        print("End Init UI")
     
 
     def animate(self, i):
-        if not self.paused:
-            offset_sampled_t = self.parent.sampled_t
+        offset_sampled_t = self.parent.sampled_t
+        if not self.paused and len(offset_sampled_t)>0:
             sampled_y = self.parent.sampled_y
             
             display_len=min(len(sampled_y),self.window_len)
              
             sampled_t = np.array(offset_sampled_t) - max(offset_sampled_t)
+            
             self.display_ts = sampled_t[-display_len:]
             self.display_ys = sampled_y[-display_len:]
             self.line.set_data(self.display_ts, self.display_ys)
+            
+            plt.show()
 
+
+        
     def autoscale(self):
-        # Check if there's enough data to perform FFT
         if len(self.parent.sampled_t) < 2 or len(self.parent.sampled_y) < 2:
             return
+        
+        temp_sampled_t= np.copy(self.parent.sampled_t)
+        cut_len=min(len(temp_sampled_t),1000)
+        temp_sampled_t= temp_sampled_t[-cut_len:]
+        
+        time_diff_s = (temp_sampled_t[-cut_len] - temp_sampled_t[-1]) /(cut_len-1)/1000
+        
+        temp_sampled_y = np.copy(self.parent.sampled_y[-cut_len:])
+        temp_sampled_y_mean= np.mean(temp_sampled_y)
+        temp_sampled_y-=np.mean(temp_sampled_y)
 
-        # Perform FFT on the signal
-        fft_result = np.fft.fft(self.parent.sampled_y)
-        fft_freq = np.fft.fftfreq(len(self.parent.sampled_y), d=self.parent.sampled_t[1] - self.parent.sampled_t[0])
+        fft_result = np.fft.fft(temp_sampled_y)
+        fft_freq = np.fft.fftfreq(len(temp_sampled_y), d=time_diff_s)
 
-        # Calculate magnitude spectrum and ignore DC component
         magnitude_spectrum = np.abs(fft_result)
-        dominant_frequency_index = np.argmax(magnitude_spectrum[1:]) + 1  # Find index of dominant frequency
-        dominant_frequency = np.abs(fft_freq[dominant_frequency_index])  # Get the dominant frequency
+        dominant_frequency_index = np.argmax(magnitude_spectrum[1:]) + 1
+        dominant_frequency = np.abs(fft_freq[dominant_frequency_index])
 
-        # Adjust scales based on FFT analysis
+        print(f"dom freq: {dominant_frequency} Hz")
+        
         if dominant_frequency > 0:
-            # Set horizontal scale to show 5 cycles of dominant frequency
-            cycle_time = 1 / dominant_frequency
+            cycle_time = 1 / dominant_frequency  # Cycle time in seconds
             horizontal_span = 5 * cycle_time
         else:
-            # If no dominant frequency, use the entire time range of sampled_t
-            horizontal_span = self.parent.sampled_t[-1] - self.parent.sampled_t[0]
-
-        # Set vertical scale based on amplitude range
-        amplitude_center = (max(self.parent.sampled_y) + min(self.parent.sampled_y)) / 2
-        vertical_span = max(self.parent.sampled_y) - min(self.parent.sampled_y)
-
-        # Apply calculated scales to axes, adjusting view to the left of the latest data
-        self.ax.set_xlim(-2 * horizontal_span, -horizontal_span)
-        self.ax.set_ylim(amplitude_center - vertical_span, amplitude_center + vertical_span)
+            # Convert the entire time range from ms to s for horizontal span
+            horizontal_span = time_diff_s
+            
+        vertical_span = (max(temp_sampled_y) - min(temp_sampled_y)) / 2  # Half span for setting ylim
+        
+        # Apply calculated scales to axes
+        # Assuming the latest data point is at temp_sampled_t[-1], convert this to seconds
+        
+        self.ax.set_xlim(- 2 * horizontal_span * 1000,  - horizontal_span * 1000)  # Convert back to ms for xlim
+        self.ax.set_ylim(temp_sampled_y_mean - vertical_span, temp_sampled_y_mean + vertical_span)
 
         plt.draw()
+        
+        del temp_sampled_t
+        del temp_sampled_y
+        
+        
 
 
     def on_key_press(self, event):
@@ -116,7 +134,8 @@ class UI():
                 save_t=self.display_ts[start_index:end_index+1]
                 save_y=self.display_ys[start_index:end_index+1]
                 
-                self.save(save_t,save_y)
+                self.parent.save(save_t,save_y)
+
             
     def on_scroll(self, event):
         xdata, ydata = event.xdata, event.ydata  
@@ -194,6 +213,7 @@ class UI():
 
             
     def on_xlim_changed(self, event=None):
+        
         current_t_lim = self.ax.get_xlim()
         w = current_t_lim[1] - current_t_lim[0]  
         
@@ -208,13 +228,12 @@ class UI():
         else:
             self.prev_x_lim = current_t_lim
         
-        current_t_min=self.ax.get_xlim()[0]
-        offset_sampled_t = self.parent.sampled_t
-        sampled_t = np.array(offset_sampled_t) - max(offset_sampled_t)
-        self.window_len=len(sampled_t)-abs(np.argmin(np.abs(sampled_t-current_t_min)))
+
+        
 
 
     def on_ylim_changed(self, event=None):
+        
         current_y_lim = self.ax.get_ylim()
         h = current_y_lim[1] - current_y_lim[0]
         
@@ -232,6 +251,7 @@ class UI():
             self.ax.set_ylim([bottom_lim, top_lim])
         else:
             self.prev_y_lim = current_y_lim
+        
 
     def erase_marks(self):
         if self.start_line is not None:
@@ -247,48 +267,7 @@ class UI():
             del self.poly
             self.poly=None
             
-            
-            
-    ###########################################################################
-    # Should be moved to Recorder once ready
-    def save(self, ts, ys):
-        # Generate the default filename
-        default_filename = "data_{}.csv".format(datetime.datetime.now().strftime("%Y-%m-%d"))
-        
-        # Initialize Tkinter root widget
-        root = tk.Tk()
-        root.withdraw()  # Hide the root window
-
-        is_valid = False
-        
-        while not is_valid:
-            # Ask the user for a filename, with the default name pre-filled
-            filename = simpledialog.askstring("Save File", "Enter filename:", initialvalue=default_filename)
-            
-            # Check if the dialog was canceled
-            if not filename:
-                print("Save operation canceled.")
-                return
-            
-            # Check for invalid characters and length
-            invalid_chars = '<>:"/\\|?*'
-            if any(char in invalid_chars for char in filename):
-                tk.messagebox.showerror("Invalid Filename", "Filename contains invalid characters. Please try again.")
-            elif len(filename) > 255:  # Adjust based on your OS constraints
-                tk.messagebox.showerror("Invalid Filename", "Filename is too long. Please try again.")
-            else:
-                # Ensure filename ends with .csv
-                if not filename.lower().endswith(".csv"):
-                    filename += ".csv"
-                is_valid = True
-
-        if is_valid:
-            # Proceed with file saving
-            with open(filename, mode='w', newline='') as file:
-                writer = csv.writer(file)
-                writer.writerow(["Time (ms)", "Voltage (mV)"])
-                writer.writerows(np.column_stack((ts, ys)))
-                print(f"Data successfully saved to {filename}.")
+    
 
 
 

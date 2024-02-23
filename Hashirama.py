@@ -25,8 +25,8 @@ class Hashirama:
             cls._instance.initialize()
         return cls._instance
 
-    def initialize(self):        
-        self.recorder=Recorder.Recorder()
+    def initialize(self):
+        print("Init Hashirama")        
         
         GPIO.setmode(GPIO.BOARD)
         GPIO.setup([START_BTN, END_BTN], GPIO.IN, pull_up_down=GPIO.PUD_UP)
@@ -34,12 +34,16 @@ class Hashirama:
             callback=lambda channel: self.recorder.start_saving(), bouncetime=200)
         GPIO.add_event_detect(END_BTN, GPIO.RISING, \
             callback=lambda channel: self.recorder.end_saving(), bouncetime=200)
-        data_collection_thread = threading.Thread(target=self.recoder.collect_data, daemon=True)
+        
+        self.recorder=Recorder.Recorder()
+        print("recorder init end")
+        
+        data_collection_thread = threading.Thread(target=self.recorder.collect_data, daemon=True)
         data_collection_thread.start()
+        print("thread started")
+        
+        plt.show()
     
         
-
-
-    
-    
+hashi=Hashirama()
             
