@@ -64,7 +64,7 @@ class UI():
             self.display_ys = sampled_y[-display_len:]
             self.line.set_data(self.display_ts, self.display_ys)
             
-            plt.show()
+            plt.draw()
 
 
         
