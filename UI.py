@@ -93,7 +93,7 @@ class UI():
         
         if dominant_frequency > 0:
             cycle_time = 1 / dominant_frequency  # Cycle time in seconds
-            horizontal_span = 5 * cycle_time
+            horizontal_span = 3.5 * cycle_time
         else:
             # Convert the entire time range from ms to s for horizontal span
             horizontal_span = time_diff_s
@@ -104,7 +104,7 @@ class UI():
         # Assuming the latest data point is at temp_sampled_t[-1], convert this to seconds
         
         self.ax.set_xlim(- 2 * horizontal_span * 1000,  - horizontal_span * 1000)  # Convert back to ms for xlim
-        self.ax.set_ylim(temp_sampled_y_mean - vertical_span, temp_sampled_y_mean + vertical_span)
+        self.ax.set_ylim(temp_sampled_y_mean - vertical_span*1.5, temp_sampled_y_mean + vertical_span*1.5)
 
         plt.draw()
         
