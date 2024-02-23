@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
-import Plot
+import UI
 import threading
 import time
 
@@ -31,7 +31,8 @@ def data_updater(recorder):
 # Usage
 
 testRec = Recorder()
-plot = Plot.Plot(testRec)
+ui = UI.UI(testRec)
+ui.autoscale()
 
 # Create a separate thread for continuously updating the data
 update_thread = threading.Thread(target=data_updater, args=(testRec,))
@@ -40,7 +41,7 @@ update_thread.start()
 
 plt.show()  # This blocks until the plot window is closed
 
-plot.save()
+
     
     
 

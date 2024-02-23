@@ -7,7 +7,7 @@ import datetime
 import csv
 import threading
 import numpy as np
-import Plot
+import UI
 
 class Recorder():
     def __init__(self):
