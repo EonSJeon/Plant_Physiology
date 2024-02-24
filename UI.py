@@ -1,13 +1,12 @@
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from matplotlib.patches import Polygon
+from matplotlib.widgets import Button
 import numpy as np
 from enum import Enum
 
 def findIdxOf(val, arr):
     return np.argmin(np.abs(arr - val))
-
-
 
 class ToolbarMode(Enum):
     PAN_ZOOM = 'pan/zoom'
@@ -15,16 +14,13 @@ class ToolbarMode(Enum):
     ACTIVE = ''
 
 
-
-        
-
 class UI():
-    def __init__(self, data_stream):
+    def __init__(self, recorder):
         
-        self.data_stream=data_stream
+        self.parent=recorder
         
         self.paused=False
-        self.max_len = 1000
+        self.max_len = 10000000
         self.fig, self.ax = plt.subplots()
         self.line, = self.ax.plot([], [])
         
@@ -41,10 +37,10 @@ class UI():
         self.poly=None
         
         self.ax.set_xlim([-self.t_max_width,0])
-        self.anim = animation.FuncAnimation(self.fig, self.animate, interval=500, cache_frame_data=False)
+        self.anim = animation.FuncAnimation(self.fig, self.animate, interval=1, cache_frame_data=False)
         
         
-        # self.fig.canvas.mpl_connect('key_press_event', self.on_key_press)
+        self.fig.canvas.mpl_connect('key_press_event', self.on_key_press)
         self.fig.canvas.mpl_connect('scroll_event', self.on_scroll)
         self.fig.canvas.mpl_connect('button_press_event', self.on_click)
         
@@ -59,17 +55,24 @@ class UI():
         self.ax.set_title("Project Hashirama: Time vs Voltage")
         self.ax.set_xlabel("Time [ms]")
         self.ax.set_ylabel("Voltage [mV]")
+        
+        ax_button = plt.axes([0.81, 0.05, 0.1, 0.075])  # Adjust these dimensions as needed
+        self.btn_save = Button(ax_button, 'Save')
+        self.btn_save.on_clicked(self.parent.start_saving)
     
+    def check_data_stream_form(self):
+        
+        if self.parent.data_stream.shape[0]<2:
+                return None
+        if self.parent.data_stream.shape[0] > self.max_len:  
+            self.parent.data_stream = self.parent.data_stream[-self.max_len: ,:]
+        print(self.parent.data_stream.shape)
+        return np.copy(self.parent.data_stream)
 
     def animate(self, i):
         if not self.paused:
-            # Ensure data_stream does not exceed max_len
-            if self.data_stream.shape[0] > self.max_len:  # Assuming data_stream is a 2D array with shape (2, N)
-                self.data_stream = self.data_stream[-self.max_len: ,:]
-
-            # Adjust for non-empty data_stream
-            if self.data_stream.shape[0] > 0:
-                current_data_stream = np.copy(self.data_stream)
+            current_data_stream= self.check_data_stream_form()
+            if current_data_stream is not None:
                 current_data_stream[:, 0] -= current_data_stream[-1, 0]
 
                 ctlimlow, ctlimhigh = self.ax.get_xlim()
@@ -86,45 +89,39 @@ class UI():
 
         
     def autoscale(self):
-        if len(self.parent.sampled_t) < 2 or len(self.parent.sampled_y) < 2:
-            return
-        
-        temp_sampled_t= np.copy(self.parent.sampled_t)
-        cut_len=min(len(temp_sampled_t),1000)
-        temp_sampled_t= temp_sampled_t[-cut_len:]
-        
-        time_diff_s = (temp_sampled_t[-cut_len] - temp_sampled_t[-1]) /(cut_len-1)/1000
-        
-        temp_sampled_y = np.copy(self.parent.sampled_y[-cut_len:])
-        temp_sampled_y_mean= np.mean(temp_sampled_y)
-        temp_sampled_y-=np.mean(temp_sampled_y)
-
-        fft_result = np.fft.fft(temp_sampled_y)
-        fft_freq = np.fft.fftfreq(len(temp_sampled_y), d=time_diff_s)
-
-        magnitude_spectrum = np.abs(fft_result)
-        dominant_frequency_index = np.argmax(magnitude_spectrum[1:]) + 1
-        dominant_frequency = np.abs(fft_freq[dominant_frequency_index])
-
-        print(f"dom freq: {dominant_frequency} Hz")
-        
-        if dominant_frequency > 0:
-            cycle_time = 1 / dominant_frequency  # Cycle time in seconds
-            horizontal_span = 3.5 * cycle_time
-        else:
-            # Convert the entire time range from ms to s for horizontal span
-            horizontal_span = time_diff_s
+        current_data_stream =self.check_data_stream_form()
+        if current_data_stream is not None:
+            current_ts=current_data_stream[:,0]
+            current_ys=current_data_stream[:,1]
             
-        vertical_span = (max(temp_sampled_y) - min(temp_sampled_y)) / 2  # Half span for setting ylim
-        
-        # Apply calculated scales to axes
-        # Assuming the latest data point is at temp_sampled_t[-1], convert this to seconds
-        
-        self.ax.set_xlim(- 2 * horizontal_span * 1000,  - horizontal_span * 1000)  # Convert back to ms for xlim
-        self.ax.set_ylim(temp_sampled_y_mean - vertical_span*1.5, temp_sampled_y_mean + vertical_span*1.5)
-        
-        del temp_sampled_t
-        del temp_sampled_y
+            amp_mean=np.mean(current_ys)
+            current_ys-=amp_mean
+            time_diff_s=(current_ts[-1]-current_ts[0])/len(current_ts)/1000
+
+            fft_result = np.fft.fft(current_ys)
+            fft_freq = np.fft.fftfreq(len(current_ys), d=time_diff_s)
+
+            magnitude_spectrum = np.abs(fft_result)
+            dominant_frequency_index = np.argmax(magnitude_spectrum[1:]) + 1
+            dominant_frequency = np.abs(fft_freq[dominant_frequency_index])
+
+            print(f"dom freq: {dominant_frequency} Hz")
+            
+            if dominant_frequency > 0:
+                cycle_time = 1 / dominant_frequency  # Cycle time in seconds
+                horizontal_span = 3.5 * cycle_time
+            else:
+                # Convert the entire time range from ms to s for horizontal span
+                horizontal_span = time_diff_s
+                
+            vertical_span = (max(current_ys) - min(current_ys)) / 2  # Half span for setting ylim
+            
+            # Apply calculated scales to axes
+            # Assuming the latest data point is at temp_sampled_t[-1], convert this to seconds
+            
+            self.ax.set_xlim(- 2 * horizontal_span * 1000,  - horizontal_span * 1000)  # Convert back to ms for xlim
+            self.ax.set_ylim(amp_mean - vertical_span*1.5, amp_mean + vertical_span*1.5)
+
         
         
     def on_key_press(self, event):

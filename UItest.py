@@ -4,29 +4,39 @@ import matplotlib.animation as animation
 import threading
 import time
 import UI
+from math import sin, pi
+
 
 class Recorder():
     def __init__(self):
         self.A = 100
         self.num_points = 10000
-        sampled_t = np.linspace(0, 1000 * np.pi, self.num_points)
-        sampled_y = self.A * np.sin(sampled_t)
-        self.sampled_data = np.column_stack((sampled_t, sampled_y))
-        self.step_size = 0.1  # Amount to increment time by in each frame of the animation
-    
+        self.data_stream = np.empty((0, 2))
+
+    def start_saving(self):
+        print("start saving")
+        
     def update_data(self):
-        self.sampled_data[:, 0] += self.step_size
-        self.sampled_data[:, 1] = self.A * np.sin(self.sampled_data[:, 0])
+        
+
+        # Generate new sample based on sine wave
+        t=time.time()
+        new_sample_y = self.A * sin(2 * pi * t)  # Example: sine wave with period of 1 second
+        new_sample = np.array([t*10, new_sample_y])
+
+        # Update sampled_data with new_sample
+        self.data_stream = np.row_stack((self.data_stream, new_sample))
+
 
 def data_updater(recorder):
     while True:
         recorder.update_data()
-        time.sleep(0.01)
+        #time.sleep(0.00001)
 
 
 
 testRec = Recorder()
-ui = UI.UI(testRec.sampled_data)
+ui = UI.UI(testRec)
 
 update_thread = threading.Thread(target=data_updater, args=(testRec,))
 update_thread.daemon = True  # This ensures the thread stops when the main program ends
