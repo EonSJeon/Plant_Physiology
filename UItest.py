@@ -1,48 +1,41 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
-import UI
 import threading
 import time
-
-
+import UI
 
 class Recorder():
     def __init__(self):
-        self.A=100
-        self.num_points = 1000
-        self.sampled_t = np.linspace(0, 100 * np.pi, self.num_points)
-        self.sampled_y = self.A*np.sin(self.sampled_t)
+        self.A = 100
+        self.num_points = 10000
+        sampled_t = np.linspace(0, 1000 * np.pi, self.num_points)
+        sampled_y = self.A * np.sin(sampled_t)
+        self.sampled_data = np.column_stack((sampled_t, sampled_y))
         self.step_size = 0.1  # Amount to increment time by in each frame of the animation
     
     def update_data(self):
-        # Shift the time axis by step_size to create the moving effect
-        self.sampled_t += self.step_size
-        # Recalculate the sine wave values
-        self.sampled_y = self.A*np.sin(self.sampled_t)
-        # Ensure sampled_t remains within 0 to 2*pi range
-        
+        self.sampled_data[:, 0] += self.step_size
+        self.sampled_data[:, 1] = self.A * np.sin(self.sampled_data[:, 0])
 
 def data_updater(recorder):
     while True:
         recorder.update_data()
-        time.sleep(0.01)  # Adjust sleep time as needed for desired update rate
+        time.sleep(0.01)
 
-# Usage
+
 
 testRec = Recorder()
-ui = UI.UI(testRec)
-ui.autoscale()
+ui = UI.UI(testRec.sampled_data)
 
-# Create a separate thread for continuously updating the data
 update_thread = threading.Thread(target=data_updater, args=(testRec,))
-update_thread.daemon = True  # Set the thread as daemon so it stops when the main program ends
+update_thread.daemon = True  # This ensures the thread stops when the main program ends
 update_thread.start()
 
-plt.show()  # This blocks until the plot window is closed
+plt.show()
 
 
-    
+
     
 
 

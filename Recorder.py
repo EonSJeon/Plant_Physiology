@@ -17,6 +17,7 @@ class Recorder():
         self.adc.setADCConfig(sps=860)
         
         self.max_sampled=5000
+
         self.sampled_t = np.array([])
         self.sampled_y = np.array([])
         

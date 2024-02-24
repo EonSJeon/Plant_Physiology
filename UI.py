@@ -2,24 +2,37 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from matplotlib.patches import Polygon
 import numpy as np
-from math import ceil
+from enum import Enum
+
+def findIdxOf(val, arr):
+    return np.argmin(np.abs(arr - val))
 
 
+
+class ToolbarMode(Enum):
+    PAN_ZOOM = 'pan/zoom'
+    ZOOM_RECT = 'zoom rect'
+    ACTIVE = ''
+
+
+
+        
 
 class UI():
-    def __init__(self, recorder):
+    def __init__(self, data_stream):
         
-        self.parent = recorder
+        self.data_stream=data_stream
+        
         self.paused=False
-        self.window_len = 1000
+        self.max_len = 1000
         self.fig, self.ax = plt.subplots()
         self.line, = self.ax.plot([], [])
         
         self.t_max_width=500
         self.y_max_width=2e4
         
-        self.display_ts = np.zeros(self.window_len)
-        self.display_ys = np.zeros(self.window_len)
+        self.display_ts = np.zeros(self.max_len)
+        self.display_ys = np.zeros(self.max_len)
         
         self.click_count=0
         
@@ -31,7 +44,7 @@ class UI():
         self.anim = animation.FuncAnimation(self.fig, self.animate, interval=500, cache_frame_data=False)
         
         
-        self.fig.canvas.mpl_connect('key_press_event', self.on_key_press)
+        # self.fig.canvas.mpl_connect('key_press_event', self.on_key_press)
         self.fig.canvas.mpl_connect('scroll_event', self.on_scroll)
         self.fig.canvas.mpl_connect('button_press_event', self.on_click)
         
@@ -42,7 +55,6 @@ class UI():
         self.ax.callbacks.connect('xlim_changed', self.on_xlim_changed)
         self.ax.callbacks.connect('ylim_changed', self.on_ylim_changed)
         
-        self.dragging = False
 
         self.ax.set_title("Project Hashirama: Time vs Voltage")
         self.ax.set_xlabel("Time [ms]")
@@ -50,19 +62,26 @@ class UI():
     
 
     def animate(self, i):
-        offset_sampled_t = self.parent.sampled_t
-        if not self.paused and len(offset_sampled_t)>0:
-            sampled_y = self.parent.sampled_y
-            
-            display_len=min(len(sampled_y),self.window_len)
-             
-            sampled_t = np.array(offset_sampled_t) - max(offset_sampled_t)
-            
-            self.display_ts = sampled_t[-display_len:]
-            self.display_ys = sampled_y[-display_len:]
-            self.line.set_data(self.display_ts, self.display_ys)
-            
-            plt.draw()
+        if not self.paused:
+            # Ensure data_stream does not exceed max_len
+            if self.data_stream.shape[0] > self.max_len:  # Assuming data_stream is a 2D array with shape (2, N)
+                self.data_stream = self.data_stream[-self.max_len: ,:]
+
+            # Adjust for non-empty data_stream
+            if self.data_stream.shape[0] > 0:
+                current_data_stream = np.copy(self.data_stream)
+                current_data_stream[:, 0] -= current_data_stream[-1, 0]
+
+                ctlimlow, ctlimhigh = self.ax.get_xlim()
+
+                lowIdx = findIdxOf(ctlimlow, current_data_stream[:, 0])
+                highIdx = findIdxOf(ctlimhigh, current_data_stream[:, 0])
+
+                self.display_ts = current_data_stream[lowIdx:highIdx + 1, 0]
+                self.display_ys = current_data_stream[lowIdx:highIdx + 1, 1]
+
+                self.line.set_data(self.display_ts, self.display_ys)
+                plt.draw()
 
 
         
@@ -108,8 +127,6 @@ class UI():
         del temp_sampled_y
         
         
-
-
     def on_key_press(self, event):
         if event.key == 'ctrl+a':
             self.autoscale()
@@ -123,8 +140,8 @@ class UI():
                 start_line_t=self.start_line.get_xdata()[0]
                 end_line_t=self.end_line.get_xdata()[0]
                 
-                start_index = np.argmin(np.abs(self.display_ts - start_line_t))
-                end_index = np.argmin(np.abs(self.display_ts - end_line_t))
+                start_index = findIdxOf(start_line_t,self.display_ts)
+                end_index = findIdxOf(end_line_t,self.display_ts)
                 
                 save_t=self.display_ts[start_index:end_index+1]
                 save_y=self.display_ys[start_index:end_index+1]
@@ -133,33 +150,33 @@ class UI():
 
             
     def on_scroll(self, event):
-        xdata, ydata = event.xdata, event.ydata  
-        if not xdata or not ydata: 
-            return
-        
-        base_scale = 1.1
-        cur_xlim = self.ax.get_xlim()
-        cur_ylim = self.ax.get_ylim()
+        if self.toolbar_mode() != ToolbarMode.ACTIVE:
+            xdata, ydata = event.xdata, event.ydata  
+            if not xdata or not ydata: 
+                return
+            
+            base_scale = 1.1
+            cur_xlim = self.ax.get_xlim()
+            cur_ylim = self.ax.get_ylim()
 
-        if event.button == 'up':
-            scale_factor = 1 / base_scale
-        elif event.button == 'down':
-            scale_factor = base_scale
-        else:
-            return
+            if event.button == 'up':
+                scale_factor = 1 / base_scale
+            elif event.button == 'down':
+                scale_factor = base_scale
+            else:
+                return
 
-        new_width = (cur_xlim[1] - cur_xlim[0]) * scale_factor
-        new_height = (cur_ylim[1] - cur_ylim[0]) * scale_factor
-
-
-        relx = (cur_xlim[1] - xdata) / (cur_xlim[1] - cur_xlim[0])
-        rely = (cur_ylim[1] - ydata) / (cur_ylim[1] - cur_ylim[0])
-        
-        self.ax.set_xlim([xdata - new_width * (1 - relx), xdata + new_width * relx])
-        self.ax.set_ylim([ydata - new_height * (1 - rely), ydata + new_height * rely])
+            new_width = (cur_xlim[1] - cur_xlim[0]) * scale_factor
+            new_height = (cur_ylim[1] - cur_ylim[0]) * scale_factor
 
 
-        plt.draw()
+            relx = (cur_xlim[1] - xdata) / (cur_xlim[1] - cur_xlim[0])
+            rely = (cur_ylim[1] - ydata) / (cur_ylim[1] - cur_ylim[0])
+            
+            self.ax.set_xlim([xdata - new_width * (1 - relx), xdata + new_width * relx])
+            self.ax.set_ylim([ydata - new_height * (1 - rely), ydata + new_height * rely])
+
+            plt.draw()
     
     def on_click(self, event):
         if self.paused:
@@ -223,10 +240,6 @@ class UI():
             self.ax.set_xlim([left_lim, right_lim])
         else:
             self.prev_x_lim = current_t_lim
-        
-
-        
-
 
     def on_ylim_changed(self, event=None):
         
@@ -247,6 +260,18 @@ class UI():
             self.ax.set_ylim([bottom_lim, top_lim])
         else:
             self.prev_y_lim = current_y_lim
+    
+    
+    def toolbar_mode(self):
+        # This function checks the toolbar mode for figures with a toolbar
+        toolbar = self.fig.canvas.toolbar
+        if toolbar is not None:
+            if toolbar.mode == ToolbarMode.PAN_ZOOM.value:
+                return ToolbarMode.PAN_ZOOM
+            elif toolbar.mode == ToolbarMode.ZOOM_RECT.value:
+                return ToolbarMode.ZOOM_RECT
+            else:
+                return ToolbarMode.ACTIVE
 
 
     
