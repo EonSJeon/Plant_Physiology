@@ -1,13 +1,10 @@
 import time
-import smbus2
+from pyftdi.i2c import I2cController
 
 __all__ = ['ADS1115']
 
-# ===========================================================================
-# ADS1115 Class
-# ===========================================================================
 class ADS1115:
-    bus = None
+    i2c = None
 
     # IC Identifiers
     __IC_ADS1115 = 0x01
@@ -104,17 +101,26 @@ class ADS1115:
         256:__ADS1015_REG_CONFIG_PGA_0_256V
         }  
 
-    # Constructor
+   # Constructor
     def __init__(self):
         try:
-            self.bus = smbus2.SMBus(1)
-        except:
-            raise IOError("Could not find i2c device")
+            self.i2c = I2cController()
+            self.i2c.configure('ftdi://ftdi:232h/1')  # Example URL, adjust as needed
+        except Exception as e:
+            raise IOError(f"Could not initialize I2C device: {e}")
         self.ic = self.__IC_ADS1115
         self.address = self.__ADS1015_GND_ADR
 
         self.pga = 0
         self.sps = 0
+
+    def write_i2c(self, register, data):
+        with self.i2c.get_port(self.address) as i2c_port:
+            i2c_port.write_to(register, data)
+
+    def read_i2c(self, register, length):
+        with self.i2c.get_port(self.address) as i2c_port:
+            return i2c_port.read_from(register, length)
 
     def setADCConfig(self, mux=__ADS1015_REG_CONFIG_MUX_SINGLE_0,sps=860, pga=6144):
         self.sps=sps
@@ -128,14 +134,13 @@ class ADS1115:
                  mux | self.spsADS1115[sps] | self.pgaADS1x15[pga]
         
         bytes = [(config >> 8) & 0xFF, config & 0xFF]
-        self.bus.write_i2c_block_data(self.address, self.__ADS1015_REG_POINTER_CONFIG, bytes)
+        self.write_i2c(self.address, self.__ADS1015_REG_POINTER_CONFIG, bytes)
     
     def read(self):
         # delay = 1.0/self.sps+0.0001
         # time.sleep(delay)
 
-        result = self.bus.read_i2c_block_data(self.address, \
-            self.__ADS1015_REG_POINTER_CONVERT, 2)
+        result = self.read_i2c(self.__ADS1015_REG_POINTER_CONVERT, 2)
 
         val = (result[0] << 8) | (result[1])
         if val > 0x7FFF:
@@ -187,7 +192,7 @@ class ADS1115:
 
         # Write config register to the ADC
         bytes = [(config >> 8) & 0xFF, config & 0xFF]
-        self.bus.write_i2c_block_data(self.address, self.__ADS1015_REG_POINTER_CONFIG, bytes)
+        self.write_i2c(self.address, self.__ADS1015_REG_POINTER_CONFIG, bytes)
 
         # Wait for the ADC conversion to complete
         # The minimum delay depends on the sps: delay >= 1/sps
@@ -196,7 +201,7 @@ class ADS1115:
         time.sleep(delay)
 
         # Read the conversion results
-        result = self.bus.read_i2c_block_data(self.address, self.__ADS1015_REG_POINTER_CONVERT, 2)
+        result = self.read_i2c(self.address, self.__ADS1015_REG_POINTER_CONVERT, 2)
         # Return a mV value for the ADS1115
         # (Take signed values into account as well)
         val = (result[0] << 8) | (result[1])
