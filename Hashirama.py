@@ -1,9 +1,8 @@
 
-import MCP4725
+# import Devices.MCP4725 as MCP4725
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import time
-import RPi.GPIO as GPIO
 import datetime
 import csv
 import threading
@@ -28,12 +27,12 @@ class Hashirama:
     def initialize(self):
         print("Init Hashirama")        
         
-        GPIO.setmode(GPIO.BOARD)
-        GPIO.setup([START_BTN, END_BTN], GPIO.IN, pull_up_down=GPIO.PUD_UP)
-        GPIO.add_event_detect(START_BTN, GPIO.RISING, \
-            callback=lambda channel: self.recorder.start_saving(), bouncetime=200)
-        GPIO.add_event_detect(END_BTN, GPIO.RISING, \
-            callback=lambda channel: self.recorder.end_saving(), bouncetime=200)
+        # GPIO.setmode(GPIO.BOARD)
+        # GPIO.setup([START_BTN, END_BTN], GPIO.IN, pull_up_down=GPIO.PUD_UP)
+        # GPIO.add_event_detect(START_BTN, GPIO.RISING, \
+        #     callback=lambda channel: self.recorder.start_saving(), bouncetime=200)
+        # GPIO.add_event_detect(END_BTN, GPIO.RISING, \
+        #     callback=lambda channel: self.recorder.end_saving(), bouncetime=200)
         
         self.recorder=Recorder.Recorder()
         print("recorder init end")

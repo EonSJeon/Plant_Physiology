@@ -115,12 +115,12 @@ class ADS1115:
         self.sps = 0
 
     def write_i2c(self, register, data):
-        with self.i2c.get_port(self.address) as i2c_port:
-            i2c_port.write_to(register, data)
+        i2c_port = self.i2c.get_port(self.address)
+        i2c_port.write_to(register, data)
 
     def read_i2c(self, register, length):
-        with self.i2c.get_port(self.address) as i2c_port:
-            return i2c_port.read_from(register, length)
+        i2c_port = self.i2c.get_port(self.address)
+        return i2c_port.read_from(register, length)
 
     def setADCConfig(self, mux=__ADS1015_REG_CONFIG_MUX_SINGLE_0,sps=860, pga=6144):
         self.sps=sps
@@ -134,7 +134,7 @@ class ADS1115:
                  mux | self.spsADS1115[sps] | self.pgaADS1x15[pga]
         
         bytes = [(config >> 8) & 0xFF, config & 0xFF]
-        self.write_i2c(self.address, self.__ADS1015_REG_POINTER_CONFIG, bytes)
+        self.write_i2c(self.__ADS1015_REG_POINTER_CONFIG, bytes)
     
     def read(self):
         # delay = 1.0/self.sps+0.0001

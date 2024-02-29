@@ -1,13 +1,11 @@
-import ADS1115
+import Devices.ADS1115 as ADS1115
 import time
-import RPi.GPIO as GPIO
 import datetime
 import csv
 import numpy as np
 import UI
 import tkinter as tk
 from tkinter import simpledialog
-import datetime
 import csv
 
 class Recorder():
@@ -17,12 +15,10 @@ class Recorder():
         self.adc.setADCConfig(sps=860)
         
         self.max_sampled=5000
-
-        self.sampled_t = np.array([])
-        self.sampled_y = np.array([])
         
-        self.saved_t = np.array([])
-        self.saved_y = np.array([])
+        self.data_stream=np.empty((0,2))
+        self.save_stream=np.empty((0,2))
+        
         self.record_start_time = 0
         self.saving = False
         
@@ -32,14 +28,16 @@ class Recorder():
     def collect_data(self):
         while True:
             
-            ct = time.time()
+            ct_ms = time.time()*1000
+            print(ct_ms)
             y = self.adc.read()
             
-            self.sampled_t = np.append(self.sampled_t, ct*1000)
-            self.sampled_y = np.append(self.sampled_y, y)
+            new_sample=np.array([ct_ms, y])
+            
+            self.data_stream=np.row_stack((self.data_stream, new_sample))
             if self.saving:
-                self.saved_t = np.append(self.saved_t, (ct-self.record_start_time)*1000)
-                self.saved_y = np.append(self.saved_y, y)
+                self.save_stream=np.row_stack((self.save_stream, new_sample))
+
             
     
     def start_saving(self):
@@ -54,10 +52,8 @@ class Recorder():
         self.saving = False
         self.save(self.saved_t, self.saved_y)
         
-        self.saved_t = np.array([])
-        self.saved_y = np.array([])
-        
-        print(f"Saved data to {filename}")
+        self.save_stream=np.empty((0,2))
+
         
     def save(self, ts, ys):
         # Generate the default filename
