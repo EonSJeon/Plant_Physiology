@@ -66,7 +66,6 @@ class UI():
                 return None
         if self.parent.data_stream.shape[0] > self.max_len:  
             self.parent.data_stream = self.parent.data_stream[-self.max_len: ,:]
-        print(self.parent.data_stream.shape)
         return np.copy(self.parent.data_stream)
 
     def animate(self, i):
